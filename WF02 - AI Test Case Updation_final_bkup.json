@@ -1,0 +1,487 @@
+{
+  "name": "WF02 - AI Test Case Updation_final_bkup",
+  "nodes": [
+    {
+      "parameters": {
+        "events": [
+          "jira:issue_updated"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.jiraTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        -192
+      ],
+      "id": "a2aabe76-8235-4db5-87a7-88d712b5fbcd",
+      "name": "Jira Trigger",
+      "webhookId": "14050b34-88c7-4495-9793-b27917e1954e",
+      "credentials": {
+        "jiraSoftwareCloudApi": {
+          "id": "64CxgoztIU0BXRkK",
+          "name": "Jira SW Cloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "issueKey": "={{ $json.issue.key }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.jira",
+      "typeVersion": 1,
+      "position": [
+        224,
+        -192
+      ],
+      "id": "2e6206bc-8e78-438f-8b0c-9141e76b5837",
+      "name": "Get an issue",
+      "credentials": {
+        "jiraSoftwareCloudApi": {
+          "id": "64CxgoztIU0BXRkK",
+          "name": "Jira SW Cloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1IdLcJD-RG0K_SzVREYWyg2f3ePmDCFHQGctNdvLBKZI",
+          "mode": "list",
+          "cachedResultName": "AI_Test_Automation_Project",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1IdLcJD-RG0K_SzVREYWyg2f3ePmDCFHQGctNdvLBKZI/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 541654484,
+          "mode": "list",
+          "cachedResultName": "02_Generated_Test_Cases",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1IdLcJD-RG0K_SzVREYWyg2f3ePmDCFHQGctNdvLBKZI/edit#gid=541654484"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Story ID",
+              "lookupValue": "={{ $('Get an issue').item.json.key }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        448,
+        -192
+      ],
+      "id": "2f2ddd72-3b94-42b0-bfdf-b5f2979a9258",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "rewOnSnZz8av2Q1I",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get all rows from Google Sheets\nconst rows = $input.all();\n\n// Find highest version\nlet latestVersion = 0;\n\nfor (const row of rows) {\n  const version = Number(row.json.Version || 0);\n\n  if (version > latestVersion) {\n    latestVersion = version;\n  }\n}\n\n// Get Jira issue details\nconst issue = $('Get an issue').first().json;\n\nreturn [{\n  json: {\n    ...issue,\n    nextVersion: latestVersion + 1\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        -192
+      ],
+      "id": "4b3ff1cf-8b68-46d2-8544-cb421b3093ed",
+      "name": "Prepare Next Version"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a Senior QA Test Engineer.\n\nYour task is to generate comprehensive manual test cases from the Jira User Story provided below.\n\nJira Story ID:\n{{ $json.key }}\n\nProject:\n{{ $json.fields.project.name }}\n\nEpic:\n{{ $json.fields.parent.fields.summary }}\n\nUser Story Summary:\n{{ $json.fields.summary }}\n\nUser Story Description:\n{{ $json.fields.description }}\n\nInstructions:\n\nGenerate comprehensive manual test cases covering:\n\n- Positive Testing\n- Negative Testing\n- Boundary Value Testing\n- Validation Testing\n- UI Testing\n- Security Testing\n- Accessibility Testing\n\nGenerate at least 15 test cases.\n\nReturn ONLY a valid JSON array.\n\nFor every generated test case, populate the following fields using the Jira story provided:\n\n- Story ID = Jira Story ID\n- Epic = Epic name\n- Feature = Functional feature/module inferred from the User Story\n- User Story Summary = Jira User Story Summary\n\nThese four values must be repeated in every JSON object.\n\nEach JSON object must contain exactly these fields:\n\n{\n\"Story ID\": \"\",\n\"Epic\": \"\",\n\"Feature\": \"\",\n\"User Story Summary\": \"\",\n\"Test Case ID\": \"\",\n\"Test Scenario\": \"\",\n\"Test Objective\": \"\",\n\"Preconditions\": \"\",\n\"Test Steps\": \"\",\n\"Test Data\": \"\",\n\"Expected Result\": \"\",\n\"Test Type\": \"\",\n\"Priority\": \"\"\n}\n\nRules:\n\n1. Test Case ID should start from TC001.\n2. Test Steps must be numbered.\n3. Priority must be High, Medium or Low.\n4. Test Type must be one of:\n   Positive\n   Negative\n   Boundary\n   Validation\n   UI\n   Security\n   Accessibility\n5. Return ONLY JSON.\n6. Do not include explanations.\n7. Do not include Markdown.\n8. Do not include code fences.\n\nIMPORTANT:\n\nReturn STRICTLY VALID JSON.\n\nDo not escape single quotes using \\'.\n\nSingle quotes may appear normally.\n\nEscape only double quotes according to JSON syntax.\n\nYour response must be directly parseable by JSON.parse().",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        896,
+        -192
+      ],
+      "id": "46472db6-d2f5-4984-ac45-cc15d670692d",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiText = $input.first().json.text;\n\n// Remove invalid escaped single quotes that Gemini may generate\nconst cleaned = aiText.replace(/\\\\'/g, \"'\");\n\nconst testCases = JSON.parse(cleaned);\n\n// Generate current date & time\nconst generationDate = new Date().toISOString();\n\nreturn testCases.map(tc => {\n\n  // Permanent unique identifier\n  tc[\"Unique Test Case Key\"] =\n    `${tc[\"Story ID\"]}_${tc[\"Test Case ID\"]}`;\n\n  // Workflow metadata\n  tc[\"Generated By\"] = \"WF01 - AI Test Case Generator\";\n  tc[\"AI Model\"] = \"Gemini 3.5 Flash\";\n  tc[\"Prompt Version\"] = \"v1.0\";\n  tc[\"Generation Date\"] = generationDate;\n  tc[\"Comments\"] = \"\";\n\n  // Versioning\n  tc[\"Version\"] = $('Prepare Next Version').first().json.nextVersion;\n  tc[\"Status\"] = \"Draft\";\n\n  return {\n    json: tc\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1248,
+        -192
+      ],
+      "id": "2e295d4c-c4ca-49c6-8a3a-1f5a10d64a17",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1IdLcJD-RG0K_SzVREYWyg2f3ePmDCFHQGctNdvLBKZI",
+          "mode": "list",
+          "cachedResultName": "AI_Test_Automation_Project",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1IdLcJD-RG0K_SzVREYWyg2f3ePmDCFHQGctNdvLBKZI/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 541654484,
+          "mode": "list",
+          "cachedResultName": "02_Generated_Test_Cases",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1IdLcJD-RG0K_SzVREYWyg2f3ePmDCFHQGctNdvLBKZI/edit#gid=541654484"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Test Case ID",
+              "displayName": "Test Case ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Story ID",
+              "displayName": "Story ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Unique Test Case Key",
+              "displayName": "Unique Test Case Key",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Epic",
+              "displayName": "Epic",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Feature",
+              "displayName": "Feature",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "User Story Summary",
+              "displayName": "User Story Summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Version",
+              "displayName": "Version",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Test Scenario",
+              "displayName": "Test Scenario",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Test Objective",
+              "displayName": "Test Objective",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Preconditions",
+              "displayName": "Preconditions",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Test Steps",
+              "displayName": "Test Steps",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Test Data",
+              "displayName": "Test Data",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Expected Result",
+              "displayName": "Expected Result",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Test Type",
+              "displayName": "Test Type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Priority",
+              "displayName": "Priority",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Generated By",
+              "displayName": "Generated By",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "AI Model",
+              "displayName": "AI Model",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Prompt Version",
+              "displayName": "Prompt Version",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Generation Date",
+              "displayName": "Generation Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Comments",
+              "displayName": "Comments",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Test Scenario Description",
+              "displayName": "Test Scenario Description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1472,
+        -192
+      ],
+      "id": "b1ffae3f-fd3d-4053-a4a9-5322d69560c6",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "rewOnSnZz8av2Q1I",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        976,
+        32
+      ],
+      "id": "12989d12-28a8-410f-9666-1cc2cc8b1f43",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "RndQc4OMKSLNs2i5",
+          "name": "Groq account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Jira Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get an issue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get an issue": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Prepare Next Version",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Next Version": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "eabb0976-f200-438d-8f80-0557437ca31b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "36e5802f6ced0b38537694521967cb964fb081663a4455581b56efd6e1061f6b"
+  },
+  "nodeGroups": [],
+  "id": "yvfFpUZPJ8THxWQN",
+  "tags": []
+}
